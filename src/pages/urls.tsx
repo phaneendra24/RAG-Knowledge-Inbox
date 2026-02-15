@@ -1,8 +1,14 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, ExternalLink, Link2, AlertCircle } from 'lucide-react';
+import {
+  Loader2,
+  ExternalLink,
+  Link2,
+  AlertCircle,
+  CheckCircle2,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -37,26 +43,75 @@ interface IngestResponse {
   message: string;
 }
 
-const normalizeAndValidateUrl = (input: string): { url: string | null; error: string | null } => {
-  let url = input.trim();
-  
-  if (!url) {
-    return { url: null, error: 'Please enter a URL' };
+const validateUrl = (
+  input: string,
+): { isValid: boolean; normalizedUrl: string | null; error: string | null } => {
+  const trimmed = input.trim();
+
+  if (!trimmed) {
+    return { isValid: false, normalizedUrl: null, error: null };
   }
 
-  // Add protocol if missing
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = `https://${url}`;
+  if (trimmed.includes(' ')) {
+    return {
+      isValid: false,
+      normalizedUrl: null,
+      error: 'URL cannot contain spaces',
+    };
+  }
+
+  const hasDomainLikeStructure =
+    /^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]*(\.[a-zA-Z0-9][a-zA-Z0-9-]*)+/;
+
+  let urlToTest = trimmed;
+  if (!/^https?:\/\//i.test(trimmed)) {
+    urlToTest = `https://${trimmed}`;
   }
 
   try {
-    const parsed = new URL(url);
+    const parsed = new URL(urlToTest);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      return { url: null, error: 'URL must start with http:// or https://' };
+      return {
+        isValid: false,
+        normalizedUrl: null,
+        error: 'URL must use http:// or https://',
+      };
     }
-    return { url, error: null };
+    const hostname = parsed.hostname;
+    if (!hostname || (hostname !== 'localhost' && !hostname.includes('.'))) {
+      return {
+        isValid: false,
+        normalizedUrl: null,
+        error: 'Please enter a valid domain (e.g., example.com)',
+      };
+    }
+
+    if (hostname.startsWith('.')) {
+      return {
+        isValid: false,
+        normalizedUrl: null,
+        error: 'Domain cannot start with a dot',
+      };
+    }
+
+    if (hostname.endsWith('.')) {
+      return {
+        isValid: false,
+        normalizedUrl: null,
+        error: 'Domain cannot end with a dot',
+      };
+    }
+
+    return { isValid: true, normalizedUrl: urlToTest, error: null };
   } catch {
-    return { url: null, error: 'Invalid URL format' };
+    if (!hasDomainLikeStructure.test(trimmed) && !trimmed.includes('.')) {
+      return {
+        isValid: false,
+        normalizedUrl: null,
+        error: 'Please enter a valid URL (e.g., https://example.com)',
+      };
+    }
+    return { isValid: false, normalizedUrl: null, error: 'Invalid URL format' };
   }
 };
 
@@ -108,7 +163,6 @@ function UrlsSkeleton() {
 
 export default function UrlsPage() {
   const [input, setInput] = useState('');
-  const [validationError, setValidationError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -119,6 +173,22 @@ export default function UrlsPage() {
     }, 100);
     return () => clearTimeout(timer);
   }, []);
+
+  const { validationError, isValid, normalizedUrl } = useMemo(() => {
+    if (!input.trim()) {
+      return { validationError: null, isValid: false, normalizedUrl: null };
+    }
+
+    const result = validateUrl(input);
+
+    const error = input.trim().length >= 3 ? result.error : null;
+
+    return {
+      validationError: error,
+      isValid: result.isValid,
+      normalizedUrl: result.normalizedUrl,
+    };
+  }, [input]);
 
   const { isPending, error, data } = useQuery({
     queryKey: ['urls', 'URL'],
@@ -142,34 +212,35 @@ export default function UrlsPage() {
           description: 'The URL has been saved to the knowledge base.',
         });
         setInput('');
-        setValidationError(null);
         queryClient.invalidateQueries({ queryKey: ['urls', 'URL'] });
       } else {
         toast.error('Failed to add URL', {
-          description: data.message || 'Something went wrong while saving the URL.',
+          description:
+            data.message || 'Something went wrong while saving the URL.',
         });
       }
     },
     onError: (error) => {
       toast.error('Failed to add URL', {
-        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'An unexpected error occurred.',
       });
     },
   });
 
   const handleSubmit = () => {
-    const { url, error } = normalizeAndValidateUrl(input);
+    const result = validateUrl(input);
 
-    if (error || !url) {
-      setValidationError(error || 'Invalid URL');
+    if (!result.isValid || !result.normalizedUrl) {
       toast.warning('Invalid URL', {
-        description: error || 'Please enter a valid URL.',
+        description: result.error || 'Please enter a valid URL.',
       });
       return;
     }
 
-    setValidationError(null);
-    ingestUrlsMutation.mutate({ url });
+    ingestUrlsMutation.mutate({ url: result.normalizedUrl });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -181,9 +252,6 @@ export default function UrlsPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
-    if (validationError) {
-      setValidationError(null);
-    }
   };
 
   if (isPending) {
@@ -204,21 +272,23 @@ export default function UrlsPage() {
   return (
     <div className="h-full w-full flex mt-3 flex-col relative">
       <div className="flex-none p-4 pb-0">
-        <div className={`relative max-w-3xl mx-auto flex items-end gap-2 p-2 border rounded-xl shadow-sm bg-card focus-within:ring-1 focus-within:ring-ring ${validationError ? 'border-destructive' : ''}`}>
+        <div
+          className={`relative max-w-3xl mx-auto flex items-end gap-2 p-2 border rounded-xl shadow-sm bg-card focus-within:ring-1 focus-within:ring-ring transition-colors `}
+        >
           <Input
             ref={inputRef}
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="Enter a URL to scrape..."
-            className="grow border-0 shadow-none focus-visible:ring-0 bg-transparent p-2"
+            className="grow border-0 shadow-none focus-visible:ring-0 bg-transparent p-2 pr-10"
             disabled={ingestUrlsMutation.isPending}
           />
           <Button
             size="icon"
             className="px-7 rounded-md shrink-0"
             onClick={handleSubmit}
-            disabled={!input.trim() || ingestUrlsMutation.isPending}
+            disabled={!isValid || ingestUrlsMutation.isPending}
           >
             {ingestUrlsMutation.isPending ? (
               <>
@@ -230,12 +300,21 @@ export default function UrlsPage() {
             )}
           </Button>
         </div>
-        {validationError && (
+
+        {validationError && input.trim().length >= 3 && (
           <div className="max-w-3xl mx-auto mt-2 flex items-center gap-2 text-sm text-destructive">
             <AlertCircle className="h-4 w-4" />
             <span>{validationError}</span>
           </div>
         )}
+
+        {isValid && normalizedUrl && input.trim().length >= 3 && (
+          <div className="max-w-3xl mx-auto mt-2 flex items-center gap-2 text-sm text-green-600">
+            <CheckCircle2 className="h-4 w-4" />
+            <span className="truncate">Will add: {normalizedUrl}</span>
+          </div>
+        )}
+
         <div className="text-center text-xs text-muted-foreground mt-2">
           Try Adding new URLs to feed the knowledge base.
         </div>
