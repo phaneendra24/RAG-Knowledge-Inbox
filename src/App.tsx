@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/home';
 import NotesPage from './pages/notes';
 import UrlsPage from './pages/urls';
+import { Toaster } from '@/components/ui/sonner';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -33,6 +34,7 @@ function App() {
             </main>
           </SidebarProvider>
         </BrowserRouter>
+        <Toaster position="top-center" />
       </ThemeProvider>
     </QueryClientProvider>
   );

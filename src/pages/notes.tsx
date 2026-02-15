@@ -2,7 +2,8 @@ import { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { Loader2, FileText } from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
   Card,
@@ -13,25 +14,40 @@ import {
 } from '@/components/ui/card';
 import { fetchAllitems, ingestNotes } from '@/queries/api';
 
+interface Note {
+  content: string;
+  id: number;
+  created_at: string;
+  updated_at: string;
+  url: string;
+  title: string;
+}
+
+interface IngestResponse {
+  success: boolean;
+  message: string;
+}
+
 export default function Notes() {
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
+
+  // Auto-focus textarea when page loads
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   const { isPending, error, data } = useQuery({
     queryKey: ['notes', 'NOTE'],
     queryFn: async ({ queryKey }) => {
       const response = await fetchAllitems({ queryKey: queryKey as string[] });
       return response as {
-        sucess: boolean;
-        data: {
-          content: string;
-          id: number;
-          created_at: string;
-          updated_at: string;
-          url: string;
-          title: string;
-        }[];
+        success: boolean;
+        data: Note[];
       };
     },
   });
@@ -39,36 +55,47 @@ export default function Notes() {
   const ingestNotesMutation = useMutation({
     mutationFn: async ({ content }: { content: string }) => {
       const response = await ingestNotes({ content });
-      return response as {
-        sucess: boolean;
-        data: {
-          content: string;
-          id: number;
-          created_at: string;
-          updated_at: string;
-          url: string;
-          title: string;
-        }[];
-      };
+      return response as IngestResponse;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notes', 'NOTE'] });
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success('Note added successfully!', {
+          description: 'Your note has been saved to the knowledge base.',
+        });
+        setInput('');
+        if (textareaRef.current) {
+          textareaRef.current.style.height = 'auto';
+        }
+        queryClient.invalidateQueries({ queryKey: ['notes', 'NOTE'] });
+      } else {
+        toast.error('Failed to add note', {
+          description: data.message || 'Something went wrong while saving your note.',
+        });
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to add note', {
+        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
+      });
     },
   });
 
   const handleSubmit = () => {
-    if (!input.trim()) return;
-    console.log('User submitted:', input);
-
-    try {
-      ingestNotesMutation.mutate({ content: input });
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-      }
-    } catch (error) {
-    } finally {
-      setInput('');
+    if (!input.trim()) {
+      toast.warning('Empty note', {
+        description: 'Please enter some content before submitting.',
+      });
+      return;
     }
+
+    if (input.trim().length < 10) {
+      toast.warning('Note too short', {
+        description: 'Please enter at least 10 characters.',
+      });
+      return;
+    }
+
+    ingestNotesMutation.mutate({ content: input });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -93,11 +120,23 @@ export default function Notes() {
   }, [input]);
 
   if (isPending) {
-    return <span>Loading...</span>;
+    return (
+      <div className="h-full w-full flex flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <p className="mt-2 text-muted-foreground">Loading notes...</p>
+      </div>
+    );
   }
 
   if (error) {
-    return <span>Error: {error.message}</span>;
+    return (
+      <div className="h-full w-full flex flex-col items-center justify-center p-4">
+        <div className="p-6 rounded-lg border border-destructive/50 bg-destructive/10 text-destructive text-center max-w-md">
+          <h3 className="font-semibold mb-2">Failed to load notes</h3>
+          <p className="text-sm">{error.message}</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -112,6 +151,7 @@ export default function Notes() {
             placeholder="Add a new note..."
             className="min-h-24 max-h-[200px] grow resize-none border-0 shadow-none focus-visible:ring-0 bg-transparent p-2"
             rows={1}
+            disabled={ingestNotesMutation.isPending}
           />
           <Button
             size="icon"
@@ -136,33 +176,21 @@ export default function Notes() {
 
       <div className="flex-1 overflow-y-auto p-4">
         <div className="max-w-5xl mx-auto space-y-6">
-          <h2 className="text-2xl font-bold tracking-tight">Your Notes</h2>
+          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <FileText className="h-6 w-6" />
+            Your Notes
+          </h2>
 
-          {isPending && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="h-40 rounded-xl border bg-muted/50 animate-pulse"
-                />
-              ))}
-            </div>
-          )}
-
-          {error && (
-            <div className="p-4 rounded-lg border border-destructive/50 bg-destructive/10 text-destructive text-center">
-              Failed to load notes. Please try again later.
-            </div>
-          )}
-
-          {!isPending && !error && data?.data.length === 0 && (
-            <div className="text-center text-muted-foreground py-12">
-              No notes found. Create one above!
+          {data?.data.length === 0 && (
+            <div className="text-center text-muted-foreground py-12 border-2 border-dashed border-muted rounded-lg">
+              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p className="text-lg font-medium">No notes yet</p>
+              <p className="text-sm">Create your first note above!</p>
             </div>
           )}
 
           <div className="flex flex-col gap-4">
-            {data?.data?.map((note: any) => (
+            {data?.data?.map((note: Note) => (
               <Card key={note.id} className="hover:shadow-md transition-shadow">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg truncate" title={note.title}>
