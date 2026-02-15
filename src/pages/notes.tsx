@@ -4,6 +4,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
 
 import {
   Card,
@@ -26,6 +27,47 @@ interface Note {
 interface IngestResponse {
   success: boolean;
   message: string;
+}
+
+function NotesSkeleton() {
+  return (
+    <div className="h-full w-full flex flex-col">
+      {/* Input skeleton */}
+      <div className="flex-none p-4 pb-0">
+        <div className="relative max-w-3xl mx-auto p-2 border rounded-xl shadow-sm bg-card">
+          <Skeleton className="h-24 w-full rounded-lg" />
+        </div>
+        <div className="max-w-3xl mx-auto mt-2 flex justify-end">
+          <Skeleton className="h-10 w-20 rounded-md" />
+        </div>
+      </div>
+
+      {/* Content skeleton */}
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="max-w-5xl mx-auto space-y-6">
+          <Skeleton className="h-8 w-48" />
+
+          <div className="flex flex-col gap-4">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="p-4">
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-6 w-3/4" />
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="h-4 w-4/6" />
+                </CardContent>
+                <CardFooter className="pt-2">
+                  <Skeleton className="h-4 w-24" />
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function Notes() {
@@ -120,12 +162,7 @@ export default function Notes() {
   }, [input]);
 
   if (isPending) {
-    return (
-      <div className="h-full w-full flex flex-col items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        <p className="mt-2 text-muted-foreground">Loading notes...</p>
-      </div>
-    );
+    return <NotesSkeleton />;
   }
 
   if (error) {

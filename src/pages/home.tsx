@@ -17,6 +17,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Accordion,
   AccordionContent,
@@ -191,6 +192,52 @@ function EmptyState() {
       <div className="mt-10 flex items-center gap-2 text-muted-foreground text-sm">
         <MessageSquare className="h-4 w-4" />
         <span>Or type a question below to start chatting</span>
+      </div>
+    </div>
+  );
+}
+
+function ConversationSkeleton() {
+  return (
+    <div className="flex flex-col h-full p-4 space-y-6">
+      {/* Header skeleton */}
+      <div className="border-b pb-2 mb-4">
+        <Skeleton className="h-6 w-48" />
+      </div>
+
+      {/* Message skeletons */}
+      <div className="space-y-4 flex-1">
+        {/* User message skeleton */}
+        <div className="flex justify-end">
+          <div className="max-w-[80%] space-y-2">
+            <Skeleton className="h-4 w-64" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+        </div>
+
+        {/* Assistant message skeleton */}
+        <div className="flex justify-start">
+          <div className="max-w-[80%] space-y-2">
+            <Skeleton className="h-4 w-72" />
+            <Skeleton className="h-4 w-56" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+        </div>
+
+        {/* Another user message */}
+        <div className="flex justify-end">
+          <div className="max-w-[80%]">
+            <Skeleton className="h-4 w-52" />
+          </div>
+        </div>
+
+        {/* Another assistant message */}
+        <div className="flex justify-start">
+          <div className="max-w-[80%] space-y-2">
+            <Skeleton className="h-4 w-80" />
+            <Skeleton className="h-4 w-60" />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -400,15 +447,21 @@ export default function Home() {
   }, [conversationId]);
 
   const conversationTitle =
-    displayMessages[0]?.content.slice(0, 60) +
-    (displayMessages[0]?.content.length > 60 ? '...' : '');
+    displayMessages[0]?.content?.slice(0, 60) +
+    (displayMessages[0]?.content?.length > 60 ? '...' : '');
 
   return (
     <div className="h-full w-full flex flex-col relative">
       {conversationId && (
         <div className="border-b p-2 flex items-center justify-between bg-card">
           <h2 className="text-sm font-medium truncate flex-1 mr-4">
-            {conversationTitle || 'Chat'}
+            {isLoadingConversation ? (
+              <>
+                <Skeleton className="h-5 w-32" />
+              </>
+            ) : (
+              conversationTitle || 'Chat'
+            )}
           </h2>
           <Button
             onClick={handleNewChat}
@@ -424,9 +477,7 @@ export default function Home() {
       )}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {isLoadingConversation ? (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-50">
-            <p>Loading conversation...</p>
-          </div>
+          <ConversationSkeleton />
         ) : displayMessages.length === 0 ? (
           <EmptyState />
         ) : (

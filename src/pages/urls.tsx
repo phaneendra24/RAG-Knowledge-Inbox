@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, ExternalLink, Link2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
 
 import {
   Card,
@@ -58,6 +59,52 @@ const normalizeAndValidateUrl = (input: string): { url: string | null; error: st
     return { url: null, error: 'Invalid URL format' };
   }
 };
+
+function UrlsSkeleton() {
+  return (
+    <div className="h-full w-full flex flex-col">
+      {/* Input skeleton */}
+      <div className="flex-none p-4 pb-0">
+        <div className="relative max-w-3xl mx-auto flex items-end gap-2 p-2 border rounded-xl shadow-sm bg-card">
+          <Skeleton className="h-10 flex-1 rounded-lg" />
+          <Skeleton className="h-10 w-20 rounded-md" />
+        </div>
+        <div className="max-w-3xl mx-auto mt-2">
+          <Skeleton className="h-4 w-64" />
+        </div>
+      </div>
+
+      {/* Content skeleton */}
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="max-w-5xl mx-auto space-y-6">
+          <Skeleton className="h-8 w-48" />
+
+          <div className="flex flex-col gap-4">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="p-4">
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-6 w-2/3" />
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="h-4 w-4/6" />
+                </CardContent>
+                <CardFooter className="pt-2 flex justify-between">
+                  <Skeleton className="h-4 w-24" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-8 w-16 rounded-md" />
+                    <Skeleton className="h-8 w-16 rounded-md" />
+                  </div>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function UrlsPage() {
   const [input, setInput] = useState('');
@@ -140,12 +187,7 @@ export default function UrlsPage() {
   };
 
   if (isPending) {
-    return (
-      <div className="h-full w-full flex flex-col items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        <p className="mt-2 text-muted-foreground">Loading URLs...</p>
-      </div>
-    );
+    return <UrlsSkeleton />;
   }
 
   if (error) {
