@@ -54,26 +54,50 @@ export const ingestUrls = async ({ url }: { url: string }) => {
 export const queryData = async ({
   question,
   conversation_id,
+  signal,
+  timeout = 60000, // 60 second default timeout
 }: {
   question: string;
   conversation_id?: number;
+  signal?: AbortSignal;
+  timeout?: number;
 }) => {
-  const response = await fetch(getApiUrl('/api/data/query'), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      question,
-      conversation_id,
-    }),
-  });
+  // Create a timeout controller
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(), timeout);
 
-  if (!response.ok) {
-    throw new Error('Network response was not ok');
+  // Combine user signal with timeout signal if provided
+  const combinedSignal = signal
+    ? AbortSignal.any([signal, timeoutController.signal])
+    : timeoutController.signal;
+
+  try {
+    const response = await fetch(getApiUrl('/api/data/query'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        question,
+        conversation_id,
+      }),
+      signal: combinedSignal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+
+    return response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Request timeout');
+    }
+    throw error;
   }
-
-  return response.json();
 };
 
 export const fetchConversations = async () => {
