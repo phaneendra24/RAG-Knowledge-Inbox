@@ -10,8 +10,6 @@ import {
   ExternalLink,
   Square,
   Loader2,
-  FileText,
-  Link2,
   Sparkles,
   MessageSquare,
   ArrowRight,
@@ -118,13 +116,11 @@ function MessageBubble({ message }: { message: Message }) {
 }
 
 function WelcomeCard({
-  icon: Icon,
   title,
   description,
   to,
   color,
 }: {
-  icon: React.ElementType;
   title: string;
   description: string;
   to: string;
@@ -138,11 +134,6 @@ function WelcomeCard({
       <div
         className={`absolute top-0 right-0 w-32 h-32 opacity-10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 ${color}`}
       />
-      <div
-        className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 ${color} bg-opacity-20`}
-      >
-        <Icon className={`h-7 w-7 ${color.replace('bg-', 'text-')}`} />
-      </div>
       <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors">
         {title}
       </h3>
@@ -174,14 +165,12 @@ function EmptyState() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
         <WelcomeCard
-          icon={FileText}
           title="Add Notes"
           description="Write down your thoughts, ideas, or any text content. The AI will learn from it and use it to answer your questions."
           to="/notes"
           color="bg-blue-500"
         />
         <WelcomeCard
-          icon={Link2}
           title="Add URLs"
           description="Scrape web pages and articles. The AI will read and understand the content to provide better answers."
           to="/urls"
@@ -432,10 +421,12 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [displayMessages]);
 
-  useEffect(() => {
+  const prevConversationIdRef = useRef<number | undefined>(conversationId);
+  if (prevConversationIdRef.current !== conversationId) {
     setOptimisticMessages([]);
     setIsProcessing(false);
-  }, [conversationId]);
+    prevConversationIdRef.current = conversationId;
+  }
 
   const conversationTitle =
     displayMessages[0]?.content?.slice(0, 60) +
