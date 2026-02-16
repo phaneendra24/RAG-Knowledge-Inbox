@@ -57,3 +57,17 @@ npm run dev
 ```
 
 Open `http://localhost:5173` in your browser.
+
+## Key Libraries
+
+| Library            | Purpose                           |
+| :----------------- | :-------------------------------- |
+| **React 19**       | Core UI library                   |
+| **Vite**           | Build tool & Dev server           |
+| **TypeScript**     | Type safety                       |
+| **TailwindCSS**    | Utility-first styling             |
+| **Shadcn UI**      | Accessible component primitives   |
+| **TanStack Query** | Server state management & caching |
+| **React Router**   | Client-side routing               |
+| **Lucide React**   | Icons                             |
+| **Sonner**         | Toast notifications               |
