@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, FileText } from 'lucide-react';
+import { Loader2, FileText, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -72,10 +72,10 @@ function NotesSkeleton() {
 
 export default function Notes() {
   const [input, setInput] = useState('');
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
 
-  // Auto-focus textarea when page loads
   useEffect(() => {
     const timer = setTimeout(() => {
       textareaRef.current?.focus();
@@ -100,6 +100,7 @@ export default function Notes() {
       return response as IngestResponse;
     },
     onSuccess: (data) => {
+      setSubmitError(null);
       if (data.success) {
         toast.success('Note added successfully!', {
           description: 'Your note has been saved to the knowledge base.',
@@ -110,14 +111,18 @@ export default function Notes() {
         }
         queryClient.invalidateQueries({ queryKey: ['notes', 'NOTE'] });
       } else {
+        const errorMessage = data.message || 'Something went wrong while saving your note.';
+        setSubmitError(errorMessage);
         toast.error('Failed to add note', {
-          description: data.message || 'Something went wrong while saving your note.',
+          description: errorMessage,
         });
       }
     },
     onError: (error) => {
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+      setSubmitError(errorMessage);
       toast.error('Failed to add note', {
-        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
+        description: errorMessage,
       });
     },
   });
@@ -141,7 +146,7 @@ export default function Notes() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && e.ctrlKey) {
       e.preventDefault();
       handleSubmit();
     }
@@ -149,6 +154,9 @@ export default function Notes() {
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
+    if (submitError) {
+      setSubmitError(null);
+    }
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
@@ -179,7 +187,7 @@ export default function Notes() {
   return (
     <div className="h-full w-full flex mt-3 flex-col relative">
       <div className="flex-none p-4 pb-0">
-        <div className="relative max-w-3xl mx-auto flex items-end gap-2 p-2 border rounded-xl shadow-sm bg-card focus-within:ring-1 focus-within:ring-ring">
+        <div className="relative max-w-3xl mx-auto flex items-center gap-2 p-2 border rounded-xl shadow-sm bg-card focus-within:ring-1 focus-within:ring-ring">
           <Textarea
             ref={textareaRef}
             value={input}
@@ -206,6 +214,15 @@ export default function Notes() {
             )}
           </Button>
         </div>
+
+        {/* Submission error message */}
+        {submitError && (
+          <div className="max-w-3xl mx-auto mt-2 flex items-start gap-2 text-sm text-destructive bg-destructive/10 p-3 rounded-md">
+            <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>{submitError}</span>
+          </div>
+        )}
+
         <div className="text-center text-xs text-muted-foreground mt-2">
           Try Adding new sources to feed the knowledge base.
         </div>

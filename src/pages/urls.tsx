@@ -8,6 +8,7 @@ import {
   Link2,
   AlertCircle,
   CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -161,12 +162,55 @@ function UrlsSkeleton() {
   );
 }
 
+const parseErrorMessage = (message: string): { title: string; description: string } => {
+  if (message.includes('HTTP 403') || message.includes('Forbidden')) {
+    return {
+      title: 'Access Denied',
+      description: 'This website blocks automated scraping. Try a different URL or manually copy the content.',
+    };
+  }
+  if (message.includes('HTTP 404')) {
+    return {
+      title: 'Page Not Found',
+      description: 'The URL appears to be invalid or the page no longer exists.',
+    };
+  }
+  if (message.includes('HTTP 429') || message.includes('Too Many Requests')) {
+    return {
+      title: 'Rate Limited',
+      description: 'This website is rate-limiting requests. Please wait a moment and try again.',
+    };
+  }
+  if (message.includes('HTTP 5') || message.includes('Server Error')) {
+    return {
+      title: 'Server Error',
+      description: 'The website encountered an error. Please try again later.',
+    };
+  }
+  if (message.includes('timeout') || message.includes('ETIMEDOUT')) {
+    return {
+      title: 'Connection Timeout',
+      description: 'The website took too long to respond. Please check the URL and try again.',
+    };
+  }
+  if (message.includes('ENOTFOUND') || message.includes('DNS')) {
+    return {
+      title: 'Website Not Found',
+      description: 'Could not resolve the domain name. Please check the URL spelling.',
+    };
+  }
+  return {
+    title: 'Failed to Add URL',
+    description: message,
+  };
+};
+
 export default function UrlsPage() {
   const [input, setInput] = useState('');
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
-  // Auto-focus input when page loads
   useEffect(() => {
     const timer = setTimeout(() => {
       inputRef.current?.focus();
@@ -207,6 +251,7 @@ export default function UrlsPage() {
       return response as IngestResponse;
     },
     onSuccess: (data) => {
+      setSubmitError(null);
       if (data.success) {
         toast.success('URL added successfully!', {
           description: 'The URL has been saved to the knowledge base.',
@@ -214,18 +259,19 @@ export default function UrlsPage() {
         setInput('');
         queryClient.invalidateQueries({ queryKey: ['urls', 'URL'] });
       } else {
-        toast.error('Failed to add URL', {
-          description:
-            data.message || 'Something went wrong while saving the URL.',
+        const error = parseErrorMessage(data.message || '');
+        setSubmitError(error.description);
+        toast.error(error.title, {
+          description: error.description,
         });
       }
     },
     onError: (error) => {
-      toast.error('Failed to add URL', {
-        description:
-          error instanceof Error
-            ? error.message
-            : 'An unexpected error occurred.',
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+      const parsedError = parseErrorMessage(errorMessage);
+      setSubmitError(parsedError.description);
+      toast.error(parsedError.title, {
+        description: parsedError.description,
       });
     },
   });
@@ -252,6 +298,9 @@ export default function UrlsPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
+    if (submitError) {
+      setSubmitError(null);
+    }
   };
 
   if (isPending) {
@@ -308,10 +357,18 @@ export default function UrlsPage() {
           </div>
         )}
 
-        {isValid && normalizedUrl && input.trim().length >= 3 && (
+        {isValid && normalizedUrl && input.trim().length >= 3 && !submitError && (
           <div className="max-w-3xl mx-auto mt-2 flex items-center gap-2 text-sm text-green-600">
             <CheckCircle2 className="h-4 w-4" />
             <span className="truncate">Will add: {normalizedUrl}</span>
+          </div>
+        )}
+
+        {/* Submission error message */}
+        {submitError && (
+          <div className="max-w-3xl mx-auto mt-2 flex items-start gap-2 text-sm text-destructive bg-destructive/10 p-3 rounded-md">
+            <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>{submitError}</span>
           </div>
         )}
 

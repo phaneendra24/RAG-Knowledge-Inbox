@@ -62,11 +62,9 @@ export const queryData = async ({
   signal?: AbortSignal;
   timeout?: number;
 }) => {
-  // Create a timeout controller
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(() => timeoutController.abort(), timeout);
 
-  // Combine user signal with timeout signal if provided
   const combinedSignal = signal
     ? AbortSignal.any([signal, timeoutController.signal])
     : timeoutController.signal;

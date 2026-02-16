@@ -267,7 +267,6 @@ export default function Home() {
       select: (response) => (response.data?.messages as Message[]) || [],
     });
 
-  // Combine server messages with optimistic messages
   const displayMessages = useMemo<Message[]>(() => {
     return conversationId
       ? [...serverMessages, ...optimisticMessages]
@@ -282,7 +281,6 @@ export default function Home() {
       question: string;
       conversation_id?: number;
     }) => {
-      // Create abort controller for this request
       abortControllerRef.current = new AbortController();
 
       try {
@@ -300,7 +298,6 @@ export default function Home() {
       }
     },
     onMutate: async (variables) => {
-      // Add optimistic user message
       const optimisticUserMessage: Message = {
         id: `optimistic-user-${Date.now()}`,
         role: 'user',
@@ -310,7 +307,6 @@ export default function Home() {
         isOptimistic: true,
       };
 
-      // Add optimistic assistant message (loading state)
       const optimisticAssistantMessage: Message = {
         id: `optimistic-assistant-${Date.now()}`,
         role: 'assistant',
@@ -334,7 +330,6 @@ export default function Home() {
     onSuccess: (data) => {
       const response = data.data;
 
-      // Remove optimistic messages
       setOptimisticMessages([]);
       setIsProcessing(false);
 
@@ -354,11 +349,9 @@ export default function Home() {
       toast.success('Response received');
     },
     onError: (error, variables) => {
-      // Remove optimistic messages on error
       setOptimisticMessages([]);
       setIsProcessing(false);
 
-      // Restore the input so user can retry
       setInput(variables.question);
 
       if (error instanceof Error && error.message === 'Request cancelled') {
@@ -439,11 +432,9 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [displayMessages]);
 
-  // Clear optimistic messages when navigating to a different conversation
   useEffect(() => {
     setOptimisticMessages([]);
     setIsProcessing(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
 
   const conversationTitle =
