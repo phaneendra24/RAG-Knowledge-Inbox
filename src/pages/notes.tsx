@@ -13,6 +13,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import { fetchAllitems, ingestNotes } from '@/queries/api';
 
 interface Note {
@@ -256,8 +264,23 @@ export default function Notes() {
                     {note.content}
                   </p>
                 </CardContent>
-                <CardFooter className="text-xs text-muted-foreground pt-0">
+                <CardFooter className="text-xs text-muted-foreground pt-0 flex justify-between items-center">
                   {new Date(note.created_at).toLocaleDateString()}
+                  <Sheet>
+                    <SheetTrigger>
+                      <div className="border rounded-md px-2 py-1 hover:bg-muted cursor-pointer">
+                        View
+                      </div>
+                    </SheetTrigger>
+                    <SheetContent className="overflow-y-auto sm:max-w-xl">
+                      <SheetHeader>
+                        <SheetTitle>{note.title}</SheetTitle>
+                        <SheetDescription className="text-left whitespace-pre-wrap mt-4">
+                          {note.content}
+                        </SheetDescription>
+                      </SheetHeader>
+                    </SheetContent>
+                  </Sheet>
                 </CardFooter>
               </Card>
             ))}
